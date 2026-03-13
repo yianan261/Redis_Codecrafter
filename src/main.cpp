@@ -55,11 +55,21 @@ int main(int argc, char **argv) {
   int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   std::cout << "Client connected\n";
 
-  // const char pointer (stored in read-only data, stored in the binary that runs before main() for efficiency)
-  const char *response = "+PONG\r\n";
-  // Passing 0 tells the operating system to use the default behavior for sending data.
-  // For most basic network applications, the default is enough
-  send(client_fd, response, strlen(response), 0);
+  // use buffer and recv() in while loop (one client can send multiple PINGs
+  // client sends multiple commands over one connection, 
+  //they don't necessarily arrive one by one; they arrive as a continuous "stream" of bytes.
+  char buffer[1024];
+  while(true){
+    ssize_t bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
+    if(bytes_read <= 0) break;
+    // const char pointer (stored in read-only data, stored in the binary that runs before main() for efficiency)
+    const char *response = "+PONG\r\n";
+    // Passing 0 tells the operating system to use the default behavior for sending data.
+    // For most basic network applications, the default is enough
+    send(client_fd, response, strlen(response), 0);
+
+  }
+
   
   close(client_fd);
   close(server_fd);
