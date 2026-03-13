@@ -52,10 +52,18 @@ int main(int argc, char **argv) {
 
   // Uncomment the code below to pass the first stage
   
-  accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
   std::cout << "Client connected\n";
+
+  // const char pointer (stored in read-only data, stored in the binary that runs before main() for efficiency)
+  const char *response = "+PONG\r\n";
+  // Passing 0 tells the operating system to use the default behavior for sending data.
+  // For most basic network applications, the default is enough
+  send(client_fd, response, strlen(response), 0);
   
+  close(client_fd);
   close(server_fd);
+  
 
   return 0;
 }
