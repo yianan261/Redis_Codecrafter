@@ -13,7 +13,7 @@
 #include <sstream>
 
 
-std::vector<std::string> parse_resp(std::string &data){
+std::vector<std::string> parse_resp0(std::string &data){
   //"*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"
   auto split = [&](const std::string delim){
     std::vector<std::string> result;
@@ -44,6 +44,51 @@ std::vector<std::string> parse_resp(std::string &data){
 
   return parsed_commands;
 
+}
+
+std::vector<std::string> parse_resp(const std::string &data) {
+    std::vector<std::string> commands;
+    size_t pos = 0;
+
+    // 1. A valid client request always starts with an Array (*)
+    if (data.empty() || data[0] != '*') return commands;
+
+    // Find the end of the *2\r\n line
+    pos = data.find("\r\n", pos);
+    if (pos == std::string::npos) return commands;
+    pos += 2; // Jump past the \r\n
+
+    // 2. Loop through the rest of the string
+    while (pos < data.length()) {
+        
+        // If we see a Bulk String length indicator...
+        if (data[pos] == '$') {
+            
+            // Find where the length number ends
+            size_t end_of_length = data.find("\r\n", pos);
+            if (end_of_length == std::string::npos) break;
+
+            // Extract the actual number (e.g., "$4" -> 4)
+            std::string length_str = data.substr(pos + 1, end_of_length - pos - 1);
+            int word_length = std::stoi(length_str);
+
+            // Move our position to the start of the actual word (curr end_of_length is index of "\r", we want to skip "\n" and go to the next start char)
+            pos = end_of_length + 2;
+
+            // Extract EXACTLY 'word_length' bytes (This makes it binary safe!)
+            if (pos + word_length <= data.length()) {
+                commands.push_back(data.substr(pos, word_length));
+            }
+
+            // Advance our position past the word and its trailing \r\n
+            pos = pos + word_length + 2;
+        } else {
+            // If it's not a bulk string, we break for now.
+            break; 
+        }
+    }
+
+    return commands;
 }
 
 int main(int argc, char **argv) {
