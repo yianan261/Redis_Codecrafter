@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <poll.h> 
+#include <vector>
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -118,7 +119,6 @@ int main(int argc, char **argv) {
   }
 
   close(server_fd);
-  
 
   return 0;
 }
