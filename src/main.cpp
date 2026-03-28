@@ -9,6 +9,42 @@
 #include <netdb.h>
 #include <poll.h> 
 #include <vector>
+#include <string>
+#include <sstream>
+
+
+std::vector<std::string> parse_resp(std::string &data){
+  //"*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"
+  auto split = [&](const std::string delim){
+    std::vector<std::string> result;
+    size_t start = 0;
+
+    while(true){
+      size_t pos = data.find(delim, start);
+      if(pos == std::string::npos){
+        result.push_back(data.substr(start));
+        break;
+      }
+      result.push_back(data.substr(start, pos-start));
+      start = pos + delim.size();
+    }
+    return result;
+  };
+  std::vector<std::string> lines = split("\r\n");
+  std::vector<std::string> parsed_commands;
+  for(size_t i=0; i < lines.size(); i++){
+    if(lines[i].empty()) continue;
+    if(lines[i][0] == '$'){
+      if(i+1 < lines.size()){
+        parsed_commands.push_back(lines[i+1]);
+        i++;
+      }
+    }
+  }
+
+  return parsed_commands;
+
+}
 
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -109,9 +145,26 @@ int main(int argc, char **argv) {
             // into the current index, and we need to check it.
             i--;
           }else{
-            // received data, we only need to fire PONG here
-            const char *response = "+PONG\r\n";
-            send(fds[i].fd, response, strlen(response),0);
+            // received data
+            std::string client_buffer(buffer, bytes_recevied);
+            std::vector<std::string> commands = parse_resp(client_buffer);
+
+            if(commands.size() > 0){
+              std::string cmd = commands[0];
+              if(cmd == "PING" || cmd == "ping"){
+                const char *response = "+PONG\r\n";
+                send(fds[i].fd, response, strlen(response),0);
+              }else if(cmd == "ECHO" || cmd == "echo"){
+                if(commands.size() > 1){
+                  std::string msg = commands[1]; // extract message
+                  //rebuild dynamic resp bulk string 
+                  std::string response = "$" + std::to_string(msg.length()) + "\r\n" + msg + "\r\n";
+                  // Send it back! (Use .c_str() to convert std::string to const char*)
+                  send(fds[i].fd, response.c_str(), response.length(), 0);
+                }
+              }
+            }
+
           }
         }
       }
